@@ -109,18 +109,18 @@ export function HomePage() {
         />
         
         <Container size="lg" className="relative z-10 text-white">
-          <Stack gap="lg" maw={600}>
+          <Stack gap="lg" maw={600} mx="auto" align="center">
             <Box>
-              <Title size={48} fw={800} className="tracking-tight leading-tight">
-                Welcome to Bonafide <br /> 
-                <span className="text-blue-200">Certificate Portal</span>
-              </Title>
-              <Text size="xl" mt="md" fw={400} className="text-slate-100/90">
+                <Title size={48} fw={800} className="tracking-tight leading-tight" ta="center">
+                  Welcome to Bonafide <br /> 
+                  <span className="text-blue-200">Certificate Portal</span>
+                </Title>
+              <Text size="xl" mt="md" fw={400} className="text-slate-100/90" ta="center">
                 Request and track your bonafide certificates easily through our digital portal. A streamlined process for students and faculty.
               </Text>
             </Box>
             
-            <Group mt="xl">
+            <Group mt="xl" justify="center">
               <Button 
                 size="lg" 
                 radius="md" 
@@ -130,15 +130,6 @@ export function HomePage() {
                 className="hover:bg-slate-100"
               >
                 Login Now
-              </Button>
-              <Button 
-                size="lg" 
-                radius="md" 
-                variant="outline" 
-                color="white" 
-                className="border-white/40 hover:bg-white/10"
-              >
-                Learn More
               </Button>
             </Group>
           </Stack>

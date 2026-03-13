@@ -1,0 +1,7 @@
+{
+  "name": "bcp-v2",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"cd backend && python -m uvicorn app.main:app --reload\" \"cd frontend && npm run dev\""
+  }
+}

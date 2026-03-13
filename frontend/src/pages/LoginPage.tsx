@@ -24,22 +24,60 @@ export function LoginPage() {
     e.preventDefault();
     setLoading(true);
     
-    // Mock login for now
+    // Demo Student Login Logic
     setTimeout(() => {
       setLoading(false);
-      notifications.show({
-        title: 'Login Successful',
-        message: 'Welcome back to BCP v2',
-        color: 'green',
-      });
-      // Mock navigation based on email (just for scaffolding)
-      if (email.includes('admin')) navigate('/admin');
-      else if (email.includes('student')) navigate('/student');
-      else if (email.includes('tutor')) navigate('/tutor');
-      else if (email.includes('hod')) navigate('/hod');
-      else if (email.includes('principal')) navigate('/principal');
-      else if (email.includes('office')) navigate('/office');
-      else navigate('/admin');
+      
+      if (email === 'csestudent@gmail.com' && password === '4567890') {
+        localStorage.setItem('role', 'student');
+        notifications.show({
+          title: 'Login Successful',
+          message: 'Welcome back, Student!',
+          color: 'green',
+        });
+        navigate('/student/dashboard'); // Redirecting to Student Dashboard
+      } else if (email === 'csetutor@gmail.com' && password === '4567890') {
+        localStorage.setItem('role', 'tutor');
+        notifications.show({
+          title: 'Login Successful',
+          message: 'Welcome back, Tutor!',
+          color: 'green',
+        });
+        navigate('/tutor/dashboard');
+      } else if (email === 'csehod@gmail.com' && password === '4567890') {
+        localStorage.setItem('role', 'hod');
+        notifications.show({
+          title: 'Login Successful',
+          message: 'Welcome, Professor Winston!',
+          color: 'blue',
+        });
+        navigate('/hod/dashboard');
+      } else if (email === 'Principal@gmail.com' && password === '4567890') {
+        localStorage.setItem('role', 'principal');
+        notifications.show({
+          title: 'Login Successful',
+          message: 'Welcome, Principal Henderson!',
+          color: 'indigo',
+        });
+        navigate('/principal/dashboard');
+      } else if (email === 'office@gmail.com' && password === '4567890') {
+        localStorage.setItem('role', 'office');
+        notifications.show({
+          title: 'Login Successful',
+          message: 'Welcome back, Office Admin!',
+          color: 'cyan',
+        });
+        navigate('/office/dashboard');
+      } else if (email.includes('admin')) {
+        // Fallback for previous scaffolding
+        navigate('/admin');
+      } else {
+        notifications.show({
+          title: 'Login Failed',
+          message: 'Invalid email or password',
+          color: 'red',
+        });
+      }
     }, 1000);
   };
 
