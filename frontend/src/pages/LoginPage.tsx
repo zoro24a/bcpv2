@@ -13,6 +13,7 @@ import {
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
+import { authService } from '@/services/api';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -24,61 +25,44 @@ export function LoginPage() {
     e.preventDefault();
     setLoading(true);
     
-    // Demo Student Login Logic
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const response = await authService.login({ email, password });
+      const { access_token } = response.data;
       
-      if (email === 'csestudent@gmail.com' && password === '4567890') {
-        localStorage.setItem('role', 'student');
-        notifications.show({
-          title: 'Login Successful',
-          message: 'Welcome back, Student!',
-          color: 'green',
-        });
-        navigate('/student/dashboard'); // Redirecting to Student Dashboard
-      } else if (email === 'csetutor@gmail.com' && password === '4567890') {
-        localStorage.setItem('role', 'tutor');
-        notifications.show({
-          title: 'Login Successful',
-          message: 'Welcome back, Tutor!',
-          color: 'green',
-        });
-        navigate('/tutor/dashboard');
-      } else if (email === 'csehod@gmail.com' && password === '4567890') {
-        localStorage.setItem('role', 'hod');
-        notifications.show({
-          title: 'Login Successful',
-          message: 'Welcome, Professor Winston!',
-          color: 'blue',
-        });
-        navigate('/hod/dashboard');
-      } else if (email === 'Principal@gmail.com' && password === '4567890') {
-        localStorage.setItem('role', 'principal');
-        notifications.show({
-          title: 'Login Successful',
-          message: 'Welcome, Principal Henderson!',
-          color: 'indigo',
-        });
-        navigate('/principal/dashboard');
-      } else if (email === 'office@gmail.com' && password === '4567890') {
-        localStorage.setItem('role', 'office');
-        notifications.show({
-          title: 'Login Successful',
-          message: 'Welcome back, Office Admin!',
-          color: 'cyan',
-        });
-        navigate('/office/dashboard');
-      } else if (email.includes('admin')) {
-        // Fallback for previous scaffolding
-        navigate('/admin');
-      } else {
-        notifications.show({
-          title: 'Login Failed',
-          message: 'Invalid email or password',
-          color: 'red',
-        });
+      // Save token
+      localStorage.setItem('token', access_token);
+      
+      // Get user info and role
+      const userResponse = await authService.getMe();
+      const user = userResponse.data;
+      localStorage.setItem('role', user.role);
+      
+      notifications.show({
+        title: 'Login Successful',
+        message: `Welcome back, ${user.first_name || 'User'}!`,
+        color: 'green',
+      });
+      
+      // Redirect based on role
+      switch (user.role) {
+        case 'student': navigate('/student/dashboard'); break;
+        case 'tutor': navigate('/tutor/dashboard'); break;
+        case 'hod': navigate('/hod/dashboard'); break;
+        case 'principal': navigate('/principal/dashboard'); break;
+        case 'office': navigate('/office/dashboard'); break;
+        case 'admin': navigate('/admin/dashboard'); break;
+        default: navigate('/');
       }
-    }, 1000);
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      notifications.show({
+        title: 'Login Failed',
+        message: error.response?.data?.detail || 'Invalid email or password',
+        color: 'red',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

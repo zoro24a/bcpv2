@@ -10,11 +10,18 @@ class Token(BaseModel):
     token_type: str
 
 class UserOut(BaseModel):
-    id: int
+    id: str
     email: EmailStr
+    username: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     full_name: str
     role: str
-    department_id: Optional[int]
+    department_id: Optional[int] = None
+    batch_id: Optional[int] = None
+    phone_number: Optional[str] = None
+    avatar_url: Optional[str] = None
+    gender: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Users2, 
   Plus, 
@@ -55,13 +55,100 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 
+import { tutorService, departmentService } from '@/services/api';
+import { toast } from "@/components/ui/use-toast"
+
 export function AdminManageTutors() {
-  const [tutors] = useState([
-    { id: 1, name: "Dr. Robert Fox", department: "CSE", batch: "2020-2024", semester: "8", year: "2024", email: "robert.f@univ.edu", phone: "+91 99887 76601" },
-    { id: 2, name: "Prof. Jane Cooper", department: "ECE", batch: "2021-2025", semester: "6", year: "2024", email: "jane.c@univ.edu", phone: "+91 88776 65502" },
-    { id: 3, name: "Dr. Albert Flores", department: "MECH", batch: "2022-2026", semester: "4", year: "2024", email: "albert.f@univ.edu", phone: "+91 77665 54403" },
-    { id: 4, name: "Prof. Bessie Humphrey", department: "CIVIL", batch: "2023-2027", semester: "2", year: "2024", email: "bessie.h@univ.edu", phone: "+91 66554 43304" },
-  ]);
+  const [tutors, setTutors] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    password: '',
+    department_id: '',
+    phone_number: '',
+    gender: 'male',
+    role: 'tutor'
+  });
+
+  const fetchTutors = async () => {
+    try {
+      const response = await tutorService.getAll();
+      setTutors(response.data);
+    } catch (error) {
+      console.error("Failed to fetch tutors:", error);
+    }
+  };
+
+  useEffect(() => {
+    const initData = async () => {
+      try {
+        const [tutorsRes, deptsRes] = await Promise.all([
+          tutorService.getAll(),
+          departmentService.getAll()
+        ]);
+        setTutors(tutorsRes.data);
+        setDepartments(deptsRes.data);
+      } catch (error) {
+        console.error("Failed to initialize tutor management:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initData();
+  }, []);
+
+  const handleDeploy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.email || !formData.first_name || !formData.department_id) {
+      toast({
+        title: "Deployment Error",
+        description: "Core faculty identity protocols are required.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await tutorService.create({
+        ...formData,
+        department_id: parseInt(formData.department_id)
+      });
+      
+      toast({
+        title: "Deployment Complete",
+        description: "Faculty member has been integrated into the registry.",
+      });
+
+      setIsAddOpen(false);
+      setFormData({
+        first_name: '',
+        last_name: '',
+        email: '',
+        password: '',
+        department_id: '',
+        phone_number: '',
+        gender: 'male',
+        role: 'tutor'
+      });
+      fetchTutors();
+    } catch (error: any) {
+      console.error("Deployment failed:", error);
+      toast({
+        title: "Deployment Failed",
+        description: error.response?.data?.detail || "System synchronization failure.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -71,7 +158,7 @@ export function AdminManageTutors() {
               <Users2 size={24} />
            </div>
            <div>
-              <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Faculty Registry</h1>
+              <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Manage Staff (Tutors)</h1>
               <p className="text-slate-500 dark:text-slate-400 mt-1 font-bold text-sm italic uppercase tracking-wider opacity-70">Tutor Management & Onboarding Hub</p>
            </div>
         </div>
@@ -119,60 +206,108 @@ export function AdminManageTutors() {
             </DialogContent>
           </Dialog>
 
-          <Dialog>
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
               <Button className="h-12 px-8 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all">
                 <Plus className="mr-3 h-4 w-4" /> Onboard Staff
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[700px] rounded-[2.5rem] border-slate-200 dark:border-slate-800 p-0 overflow-hidden shadow-3xl">
-              <div className="bg-blue-700 p-10 text-white relative">
-                 <div className="absolute top-0 right-0 p-10 opacity-10">
-                    <Plus size={100} />
-                 </div>
-                 <DialogTitle className="text-3xl font-black uppercase tracking-tighter mb-2">Faculty Onboarding</DialogTitle>
-                 <DialogDescription className="text-blue-200 font-bold uppercase text-[10px] tracking-widest leading-none">Register individual tutor credentials</DialogDescription>
-              </div>
-              <div className="p-10 space-y-8 bg-white dark:bg-slate-900 border-t-4 border-blue-700">
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">First Name</Label>
-                    <Input placeholder="Tutor First Name" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Last Name</Label>
-                    <Input placeholder="Tutor Last Name" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" />
-                  </div>
-                  <div className="space-y-2 col-span-2">
-                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Academic Department</Label>
-                     <Select>
-                        <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl font-bold">
-                           <SelectValue placeholder="Assign to Department" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-2xl">
-                           <SelectItem value="cse">CSE</SelectItem>
-                           <SelectItem value="ece">ECE</SelectItem>
-                           <SelectItem value="mech">MECH</SelectItem>
-                        </SelectContent>
-                     </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Institutional Email</Label>
-                    <Input type="email" placeholder="faculty@university.edu" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Mobile Access</Label>
-                    <Input placeholder="+91 00000 00000" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" />
-                  </div>
-                  <div className="space-y-2 col-span-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Initial Terminal Password</Label>
-                    <Input type="password" placeholder="••••••••" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" />
-                  </div>
+            <DialogContent className="sm:max-w-[700px] rounded-[2.5rem] border-slate-200 dark:border-slate-800 p-0 overflow-hidden shadow-3xl bg-white dark:bg-slate-950">
+              <form onSubmit={handleDeploy}>
+                <div className="bg-blue-700 p-10 text-white relative">
+                   <div className="absolute top-0 right-0 p-10 opacity-10">
+                      <Plus size={100} />
+                   </div>
+                   <DialogTitle className="text-3xl font-black uppercase tracking-tighter mb-2">Faculty Onboarding</DialogTitle>
+                   <DialogDescription className="text-blue-200 font-bold uppercase text-[10px] tracking-widest leading-none">Register individual tutor credentials</DialogDescription>
                 </div>
-                <DialogFooter>
-                  <Button type="submit" className="w-full h-14 bg-blue-700 hover:bg-blue-800 text-white font-black uppercase text-sm tracking-widest shadow-2xl rounded-2xl transition-all active:scale-95">Complete Deployment</Button>
-                </DialogFooter>
-              </div>
+                <div className="p-10 space-y-8 bg-white dark:bg-slate-900 border-t-4 border-blue-700">
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">First Name</Label>
+                      <Input 
+                        value={formData.first_name}
+                        onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                        placeholder="Tutor First Name" 
+                        className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Last Name</Label>
+                      <Input 
+                        value={formData.last_name}
+                        onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                        placeholder="Tutor Last Name" 
+                        className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" 
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Academic Department</Label>
+                       <Select value={formData.department_id} onValueChange={(val) => setFormData({...formData, department_id: val})}>
+                          <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl font-bold">
+                             <SelectValue placeholder="Assign to Department" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-2xl">
+                             {departments.map(dept => (
+                               <SelectItem key={dept.id} value={dept.id.toString()}>{dept.name}</SelectItem>
+                             ))}
+                          </SelectContent>
+                       </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Institutional Email</Label>
+                      <Input 
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        type="email" 
+                        placeholder="faculty@university.edu" 
+                        className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Mobile Access</Label>
+                      <Input 
+                        value={formData.phone_number}
+                        onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
+                        placeholder="+91 00000 00000" 
+                        className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Gender Protocol</Label>
+                      <Select value={formData.gender} onValueChange={(val) => setFormData({...formData, gender: val})}>
+                        <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl font-bold">
+                          <SelectValue placeholder="Select Gender" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-xl">
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Initial Terminal Password</Label>
+                      <Input 
+                        value={formData.password}
+                        onChange={(e) => setFormData({...formData, password: e.target.value})}
+                        type="password" 
+                        placeholder="••••••••" 
+                        className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" 
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button 
+                      type="submit" 
+                      disabled={isSubmitting}
+                      className="w-full h-14 bg-blue-700 hover:bg-blue-800 text-white font-black uppercase text-sm tracking-widest shadow-2xl rounded-2xl transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {isSubmitting ? "Processing Deployment..." : "Complete Deployment"}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              </form>
             </DialogContent>
           </Dialog>
         </div>
@@ -193,7 +328,24 @@ export function AdminManageTutors() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {loading ? (
+             <div className="py-32 flex flex-col items-center justify-center text-center px-4">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-slate-500 font-bold animate-pulse">Synchronizing Faculty Directory...</p>
+             </div>
+          ) : tutors.length === 0 ? (
+            <div className="py-32 flex flex-col items-center justify-center text-center px-4 bg-slate-50/20 dark:bg-transparent transition-all">
+              <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-3xl flex items-center justify-center mb-6 text-slate-300 dark:text-slate-600 shadow-inner">
+                 <Users2 size={40} strokeWidth={1.5} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">Registry Unpopulated</h3>
+              <p className="text-slate-500 dark:text-slate-400 max-w-sm mt-3 text-sm font-bold italic leading-relaxed">
+                No teaching faculty (tutors) have been registered in the system ledger yet.
+              </p>
+              <Button onClick={() => setIsAddOpen(true)} className="mt-8 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-xs tracking-widest h-12 px-8 rounded-xl shadow-xl transition-all active:scale-95">Onboard Faculty</Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 hover:bg-transparent h-20 border-slate-100 dark:border-slate-800">
@@ -210,13 +362,13 @@ export function AdminManageTutors() {
                     <TableCell className="pl-10">
                        <div className="flex items-center gap-5">
                           <div className="w-14 h-14 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 flex items-center justify-center font-black text-lg text-blue-600 shadow-xl shadow-blue-100 dark:shadow-none transform transition-transform group-hover:scale-110">
-                             {tutor.name.split(' ').pop()?.charAt(0)}
+                             {(tutor.full_name || tutor.name || "T")[0]}
                           </div>
                           <div>
-                             <p className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight text-base leading-none mb-2">{tutor.name}</p>
+                             <p className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight text-base leading-none mb-2">{tutor.full_name || tutor.name}</p>
                              <div className="flex items-center gap-2">
                                 <Badge className="bg-emerald-500 text-white font-black text-[8px] uppercase tracking-widest border-none px-2 h-5">Verified</Badge>
-                                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{tutor.year} Cycle</span>
+                                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{(tutor.batch?.name || tutor.year || new Date().getFullYear())} Cycle</span>
                              </div>
                           </div>
                        </div>
@@ -224,16 +376,16 @@ export function AdminManageTutors() {
                     <TableCell>
                        <div className="flex items-center gap-3">
                           <Building2 size={16} className="text-slate-300" />
-                          <span className="font-black text-xs text-slate-700 dark:text-slate-300 uppercase tracking-tighter">{tutor.department}</span>
+                          <span className="font-black text-xs text-slate-700 dark:text-slate-300 uppercase tracking-tighter">{tutor.department?.name || tutor.department || 'N/A'}</span>
                        </div>
                     </TableCell>
                     <TableCell>
                        <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tighter">
-                             <GraduationCap size={14} className="text-blue-500" /> {tutor.batch}
+                             <GraduationCap size={14} className="text-blue-500" /> {tutor.batch?.name || tutor.batch || 'Unassigned'}
                           </div>
                           <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
-                             <History size={12} className="text-slate-300" /> Semester {tutor.semester}
+                             <History size={12} className="text-slate-300" /> Current Slot
                           </div>
                        </div>
                     </TableCell>
@@ -243,7 +395,7 @@ export function AdminManageTutors() {
                              <Mail size={14} className="text-slate-300 group-hover/mail:text-blue-400" /> {tutor.email}
                           </p>
                           <p className="flex items-center gap-3 text-[11px] font-bold text-slate-500 dark:text-slate-500">
-                             <Phone size={14} className="text-slate-300" /> {tutor.phone}
+                             <Phone size={14} className="text-slate-300" /> {tutor.phone_number || tutor.phone || 'No Contact'}
                           </p>
                        </div>
                     </TableCell>
@@ -279,6 +431,7 @@ export function AdminManageTutors() {
               </TableBody>
             </Table>
           </div>
+          )}
           <div className="p-8 border-t dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col sm:flex-row items-center justify-between gap-6">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
               Showing <span className="text-slate-900 dark:text-white">1–{tutors.length}</span> of <span className="text-slate-900 dark:text-white">{tutors.length}</span> records

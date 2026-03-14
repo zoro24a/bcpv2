@@ -38,6 +38,7 @@ import { OfficeAllRequests } from './components/OfficeAllRequests';
 import { OfficeCertificatesReady } from './components/OfficeCertificatesReady';
 import { OfficeIssuedCertificates } from './components/OfficeIssuedCertificates';
 import { OfficeProfile } from './components/OfficeProfile';
+import { Toaster } from "@/components/ui/toaster"
 
 function App() {
   return (
@@ -90,6 +91,7 @@ function App() {
 
         <Route path="/login" element={<LoginPage />} />
       </Routes>
+      <Toaster />
     </BrowserRouter>
   );
 }

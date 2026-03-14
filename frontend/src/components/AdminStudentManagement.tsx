@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   GraduationCap, 
   Search, 
@@ -7,7 +7,6 @@ import {
   Building2,
   MoreVertical,
   Filter,
-  CheckCircle2,
   CalendarDays,
   UserCheck2,
   Download,
@@ -53,13 +52,109 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { studentService, departmentService } from '@/services/api';
+import { toast } from "@/components/ui/use-toast"
+
 export function AdminStudentManagement() {
-  const [students] = useState([
-    { id: 1, name: "Alice Thompson", regNo: "REG1001", gender: "Female", department: "CSE", batch: "2020-2024", email: "alice.t@univ.edu", status: "Active" },
-    { id: 2, name: "Bob Smith", regNo: "REG1002", gender: "Male", department: "ECE", batch: "2021-2025", email: "bob.s@univ.edu", status: "Active" },
-    { id: 3, name: "Charlie Davis", regNo: "REG1003", gender: "Male", department: "MECH", batch: "2022-2026", email: "charlie.d@univ.edu", status: "Inactive" },
-    { id: 4, name: "Diana Prince", regNo: "REG1004", gender: "Female", department: "CIVIL", batch: "2023-2027", email: "diana.p@univ.edu", status: "Active" },
-  ]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    gender: '',
+    email: '',
+    register_number: '',
+    parent_name: '',
+    department_id: '',
+    batch_start: '',
+    batch_end: '',
+    section: '',
+    password: ''
+  });
+
+  const fetchStudents = async () => {
+    try {
+      const response = await studentService.getAll();
+      setStudents(response.data);
+    } catch (error) {
+      console.error("Failed to fetch students:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const initData = async () => {
+      try {
+        const [studentsRes, deptsRes] = await Promise.all([
+          studentService.getAll(),
+          departmentService.getAll()
+        ]);
+        setStudents(studentsRes.data);
+        setDepartments(deptsRes.data);
+      } catch (error) {
+        console.error("Failed to initialize student management:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initData();
+  }, []);
+
+  const handleRegister = async () => {
+    if (!formData.email || !formData.register_number || !formData.first_name) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in the core identity protocols.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const batchName = `${formData.batch_start}-${formData.batch_end}`;
+      await studentService.enroll({
+        ...formData,
+        department_id: formData.department_id ? parseInt(formData.department_id) : undefined,
+        batch_name: batchName,
+        section: formData.section || null
+      });
+      
+      toast({
+        title: "Enrollment Successful",
+        description: "Student protocol committed and cohort assigned/created automatically.",
+      });
+
+      setIsAddOpen(false);
+      setFormData({
+        first_name: '',
+        last_name: '',
+        gender: '',
+        email: '',
+        register_number: '',
+        parent_name: '',
+        department_id: '',
+        batch_start: '',
+        batch_end: '',
+        section: '',
+        password: ''
+      });
+      fetchStudents();
+    } catch (error: any) {
+      console.error("Enrollment failed:", error);
+      toast({
+        title: "Enrollment Failed",
+        description: error.response?.data?.detail || "Enrollment protocol interrupted. Check system logs.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
@@ -72,7 +167,7 @@ export function AdminStudentManagement() {
               <GraduationCap size={24} />
            </div>
            <div>
-              <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase leading-none">Global Roster</h1>
+              <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase leading-none">Student Management</h1>
               <p className="text-slate-500 dark:text-slate-400 mt-2 font-bold text-sm italic uppercase tracking-wider opacity-70">institution-wide Student Registry</p>
            </div>
         </div>
@@ -125,15 +220,25 @@ export function AdminStudentManagement() {
               <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">First Name</label>
-                  <Input placeholder="Master Identity First" className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" />
+                  <Input 
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                    placeholder="Master Identity First" 
+                    className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Last Name</label>
-                  <Input placeholder="Master Identity Last" className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" />
+                  <Input 
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                    placeholder="Master Identity Last" 
+                    className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Gender</label>
-                  <Select>
+                  <Select value={formData.gender} onValueChange={(val) => setFormData({...formData, gender: val})}>
                     <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4">
                       <SelectValue placeholder="Select Gender" />
                     </SelectTrigger>
@@ -146,51 +251,93 @@ export function AdminStudentManagement() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Email Protocol</label>
-                  <Input placeholder="student.id@university.edu" className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" />
+                  <Input 
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    placeholder="student.id@university.edu" 
+                    className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Register Number</label>
-                  <Input placeholder="REG_XXXX_UNIT" className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" />
+                  <Input 
+                    value={formData.register_number}
+                    onChange={(e) => setFormData({...formData, register_number: e.target.value})}
+                    placeholder="REG_XXXX_UNIT" 
+                    className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Parent/Guardian</label>
-                  <Input placeholder="Guardian Full Identity" className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" />
+                  <Input 
+                    value={formData.parent_name}
+                    onChange={(e) => setFormData({...formData, parent_name: e.target.value})}
+                    placeholder="Guardian Full Identity" 
+                    className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Department</label>
-                  <Select>
+                  <Select value={formData.department_id} onValueChange={(val) => setFormData({...formData, department_id: val})}>
                     <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4">
                       <SelectValue placeholder="Target Department" />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
-                      <SelectItem value="cse">CSE</SelectItem>
-                      <SelectItem value="ece">ECE</SelectItem>
-                      <SelectItem value="mech">MECH</SelectItem>
+                      {departments.map(dept => (
+                        <SelectItem key={dept.id} value={dept.id.toString()}>{dept.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Batch Start</label>
-                    <Input placeholder="2020" className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" />
+                    <Input 
+                      value={formData.batch_start}
+                      onChange={(e) => setFormData({...formData, batch_start: e.target.value})}
+                      placeholder="2020" 
+                      className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" 
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Batch End</label>
-                    <Input placeholder="2024" className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" />
+                    <Input 
+                      value={formData.batch_end}
+                      onChange={(e) => setFormData({...formData, batch_end: e.target.value})}
+                      placeholder="2024" 
+                      className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" 
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Section</label>
-                  <Input placeholder="e.g., A, B, Alpha" className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" />
+                  <Input 
+                    value={formData.section}
+                    onChange={(e) => setFormData({...formData, section: e.target.value})}
+                    placeholder="e.g., A, B, Alpha" 
+                    className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Default Password</label>
-                  <Input type="password" placeholder="System Generated or Manual" className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" />
+                  <Input 
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    type="password" 
+                    placeholder="System Generated or Manual" 
+                    className="h-12 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800 font-bold px-4" 
+                  />
                 </div>
               </div>
               <DialogFooter className="p-8 bg-slate-50/50 dark:bg-slate-900/50 border-t dark:border-slate-800">
                 <Button variant="ghost" onClick={() => setIsAddOpen(false)} className="h-12 px-8 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-500">Terminate Enrollment</Button>
-                <Button className="h-12 px-8 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest shadow-xl">Complete Registration</Button>
+                <Button 
+                  onClick={handleRegister} 
+                  disabled={isSubmitting}
+                  className="h-12 px-8 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest shadow-xl disabled:opacity-50"
+                >
+                  {isSubmitting ? "Committing..." : "Complete Registration"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -232,7 +379,24 @@ export function AdminStudentManagement() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {loading ? (
+             <div className="py-32 flex flex-col items-center justify-center text-center px-4">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-slate-500 font-bold animate-pulse">Syncing Academic Rosters...</p>
+             </div>
+          ) : students.length === 0 ? (
+            <div className="py-32 flex flex-col items-center justify-center text-center px-4 bg-slate-50/20 dark:bg-transparent transition-all">
+              <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-3xl flex items-center justify-center mb-6 text-slate-300 dark:text-slate-600 shadow-inner">
+                 <GraduationCap size={40} strokeWidth={1.5} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">Registry Nullified</h3>
+              <p className="text-slate-500 dark:text-slate-400 max-w-sm mt-3 text-sm font-bold italic leading-relaxed">
+                No students are currently enrolled in the institutional database.
+              </p>
+              <Button onClick={() => setIsAddOpen(true)} className="mt-8 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-xs tracking-widest h-12 px-8 rounded-xl shadow-xl transition-all active:scale-95">Enroll Pioneer Student</Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 hover:bg-transparent h-20 border-slate-100 dark:border-slate-800">
@@ -248,30 +412,30 @@ export function AdminStudentManagement() {
                 {students.map((student) => (
                   <TableRow key={student.id} className="group hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all border-slate-100 dark:border-slate-800 h-24">
                     <TableCell className="pl-10">
-                       <span className="text-xs font-black text-blue-600 uppercase tracking-widest tabular-nums">{student.regNo}</span>
+                       <span className="text-xs font-black text-blue-600 uppercase tracking-widest tabular-nums">{student.register_number || student.regNo}</span>
                     </TableCell>
                     <TableCell>
                        <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-sm text-slate-600 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
-                             {student.name.charAt(0)}
+                             {(student.full_name || student.name || "S")[0]}
                           </div>
                           <div>
-                            <p className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight text-sm leading-none">{student.name}</p>
+                            <p className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight text-sm leading-none">{student.full_name || student.name}</p>
                             <span className="text-[10px] font-bold text-slate-400 tracking-tight">{student.email}</span>
                           </div>
                        </div>
                     </TableCell>
                     <TableCell>
-                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{student.gender}</span>
+                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{student.gender || 'Not Specified'}</span>
                     </TableCell>
                     <TableCell>
                        <div className="flex items-center gap-2 text-xs font-black text-slate-800 dark:text-slate-200">
-                          <Building2 size={14} className="text-blue-500" /> {student.department}
+                          <Building2 size={14} className="text-blue-500" /> {student.department?.name || student.department || 'N/A'}
                        </div>
                     </TableCell>
                     <TableCell>
                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
-                          <CalendarDays size={12} className="text-slate-300" /> {student.batch}
+                          <CalendarDays size={12} className="text-slate-300" /> {student.batch?.name || student.batch || 'Unassigned'}
                        </div>
                     </TableCell>
                     <TableCell className="text-right pr-10">
@@ -306,6 +470,7 @@ export function AdminStudentManagement() {
               </TableBody>
             </Table>
           </div>
+          )}
           
           <div className="p-8 bg-slate-50/50 dark:bg-slate-900/50 border-t dark:border-slate-800">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
@@ -328,21 +493,6 @@ export function AdminStudentManagement() {
         </CardContent>
       </Card>
 
-      <div className="p-10 rounded-[2.5rem] bg-slate-900 text-slate-400 border border-slate-800 shadow-3xl flex flex-col sm:flex-row items-center gap-10 group overflow-hidden relative">
-         <div className="absolute inset-0 bg-blue-600/5 group-hover:bg-blue-600/10 transition-all" />
-         <div className="p-6 rounded-2xl bg-blue-600 text-white shadow-2xl relative z-10 transition-transform group-hover:rotate-12 translate-x-0 group-hover:translate-x-2">
-            <CheckCircle2 size={32} />
-         </div>
-         <div className="flex-1 text-center sm:text-left relative z-10">
-            <h6 className="text-white font-black uppercase text-base tracking-[0.2em] mb-2 leading-none">Registry Integrity Confirmed</h6>
-            <p className="text-[11px] font-bold leading-relaxed opacity-70 italic max-w-xl">
-               Every enrollment automatically generates a unique digital identifier synchronized with University protocols. Registry changes are immutable once validated by the System Admin.
-            </p>
-         </div>
-         <Button variant="outline" className="h-12 px-8 border-slate-700 text-white hover:bg-white hover:text-slate-900 font-black text-[10px] uppercase tracking-widest relative z-10 rounded-xl transition-all shadow-xl active:scale-95">
-            Registry Shield Active
-         </Button>
-      </div>
     </div>
   );
 }

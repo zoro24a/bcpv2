@@ -16,13 +16,37 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 
+import { useState, useEffect } from 'react';
+import { adminService } from '@/services/api';
+
 export function AdminDashboard() {
   const navigate = useNavigate();
+  const [statsData, setStatsData] = useState({
+    pending_requests: 0,
+    total_departments: 0,
+    total_students: 0,
+    total_tutors: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await adminService.getStats();
+        setStatsData(response.data);
+      } catch (error) {
+        console.error("Failed to fetch admin stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const stats = [
     { 
       label: 'Pending Requests', 
-      value: '42', 
+      value: statsData.pending_requests.toLocaleString(), 
       icon: Clock, 
       color: 'text-amber-600', 
       border: 'border-amber-200 dark:border-amber-900/30',
@@ -31,7 +55,7 @@ export function AdminDashboard() {
     },
     { 
       label: 'Total Departments', 
-      value: '12', 
+      value: statsData.total_departments.toLocaleString(), 
       icon: Building2, 
       color: 'text-indigo-600', 
       border: 'border-indigo-200 dark:border-indigo-900/30',
@@ -40,7 +64,7 @@ export function AdminDashboard() {
     },
     { 
       label: 'Total Students', 
-      value: '4,850', 
+      value: statsData.total_students.toLocaleString(), 
       icon: Users, 
       color: 'text-blue-600', 
       border: 'border-blue-200 dark:border-blue-900/30',
@@ -49,7 +73,7 @@ export function AdminDashboard() {
     },
     { 
       label: 'Total Tutors', 
-      value: '184', 
+      value: statsData.total_tutors.toLocaleString(), 
       icon: UserSquare2, 
       color: 'text-emerald-600', 
       border: 'border-emerald-200 dark:border-emerald-900/30',
@@ -57,6 +81,17 @@ export function AdminDashboard() {
       path: '/admin/tutors'
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-500 font-bold animate-pulse">Synchronizing Console...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

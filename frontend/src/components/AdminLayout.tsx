@@ -55,10 +55,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
     { label: 'Department Mgmt', icon: Building2, path: '/admin/departments' },
     { label: 'Manage HODs', icon: UserSquare2, path: '/admin/hods' },
-    { label: 'Manage Tutors', icon: Users2, path: '/admin/tutors' },
+    { label: 'Manage Staff (Tutors)', icon: Users2, path: '/admin/tutors' },
     { label: 'Tutor Assignment', icon: UserPlus2, path: '/admin/assignments' },
     { label: 'Template Mgmt', icon: FileJson2, path: '/admin/templates' },
-    { label: 'Student Mgmt', icon: GraduationCap, path: '/admin/students' },
+    { label: 'Student Management', icon: GraduationCap, path: '/admin/students' },
     { label: 'Profile', icon: User, path: '/admin/profile' },
   ];
 

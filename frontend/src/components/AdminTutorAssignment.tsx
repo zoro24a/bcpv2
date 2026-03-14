@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { 
   UserPlus2, 
   Search, 
-  Trash2, 
   GraduationCap,
   Building2,
   CalendarDays,
@@ -30,14 +29,88 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
+import { useEffect } from 'react';
+import { batchService, departmentService, tutorService } from '@/services/api';
+import { toast } from '@/components/ui/use-toast';
 
 export function AdminTutorAssignment() {
-  const [assignments] = useState([
-    { id: 1, batch: "2020-2024", section: "A", semester: "8", tutor: "Dr. Robert Fox", year: "2024" },
-    { id: 2, batch: "2021-2025", section: "B", semester: "6", tutor: "Prof. Jane Cooper", year: "2024" },
-    { id: 3, batch: "2021-2025", section: "A", semester: "6", tutor: "Dr. Albert Flores", year: "2024" },
-    { id: 4, batch: "2022-2026", section: "C", semester: "4", tutor: "Prof. Bessie Humphrey", year: "2024" },
-  ]);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [tutors, setTutors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form State
+  const [selectedDept, setSelectedDept] = useState('');
+  const [selectedBatch, setSelectedBatch] = useState('');
+  const [selectedSemester, setSelectedSemester] = useState('');
+  const [selectedTutor, setSelectedTutor] = useState('');
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [batchesRes, deptsRes, tutorsRes] = await Promise.all([
+        batchService.getAll(),
+        departmentService.getAll(),
+        tutorService.getAll()
+      ]);
+      setBatches(batchesRes.data);
+      setDepartments(deptsRes.data);
+      setTutors(tutorsRes.data);
+    } catch (error) {
+      console.error("Failed to fetch allocation data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleAssign = async () => {
+    if (!selectedBatch || !selectedTutor || !selectedSemester) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a Batch, Semester, and Tutor.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await batchService.assignTutor(parseInt(selectedBatch), {
+        batch_id: parseInt(selectedBatch),
+        tutor_id: selectedTutor,
+        semester: parseInt(selectedSemester)
+      });
+      toast({
+        title: "Allocation Successful",
+        description: "Faculty assigned to cohort registry.",
+      });
+      setSelectedBatch('');
+      setSelectedTutor('');
+      setSelectedSemester('');
+      fetchData(); // Refresh list to reflect potentially new assignments
+    } catch (error: any) {
+      console.error("Assignment failed:", error);
+      toast({
+        title: "Allocation Failed",
+        description: error.response?.data?.detail || "System fault during assignment.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Filter batches based on selected department
+  const filteredBatches = selectedDept 
+    ? batches.filter(b => b.department_id.toString() === selectedDept)
+    : batches;
+
+  // We consider an 'assignment' as any batch that has an actively managed cohort (currently just listing batches and their assigned status for simplicity, ideally we'd fetch actual assignments, but we map batch properties here)
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
@@ -53,8 +126,8 @@ export function AdminTutorAssignment() {
         </div>
         <div className="flex items-center gap-4">
            <div className="hidden lg:flex flex-col items-end">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Active Allocations</span>
-              <span className="text-lg font-black text-slate-900 dark:text-white tabular-nums tracking-tighter leading-none">{assignments.length} Records</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Active Cohorts</span>
+              <span className="text-lg font-black text-slate-900 dark:text-white tabular-nums tracking-tighter leading-none">{batches.length} Records</span>
            </div>
            <div className="h-10 w-px bg-slate-200 dark:bg-slate-800 hidden lg:block mx-1"></div>
            <Button variant="outline" className="h-12 px-6 rounded-xl border-2 border-slate-200 dark:border-slate-800 text-slate-500 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-slate-50">
@@ -78,32 +151,34 @@ export function AdminTutorAssignment() {
                   <div className="space-y-6">
                      <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Academic Department</label>
-                        <Select>
+                        <Select value={selectedDept} onValueChange={setSelectedDept}>
                            <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl font-bold">
                               <SelectValue placeholder="Select Department" />
                            </SelectTrigger>
                            <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
-                              <SelectItem value="cse">CSE</SelectItem>
-                              <SelectItem value="ece">ECE</SelectItem>
+                             {departments.map(dept => (
+                               <SelectItem key={dept.id} value={dept.id.toString()}>{dept.name}</SelectItem>
+                             ))}
                            </SelectContent>
                         </Select>
                      </div>
                      <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-2">
                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Batch Cohort</label>
-                           <Select>
+                           <Select value={selectedBatch} onValueChange={setSelectedBatch}>
                               <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl font-bold">
                                  <SelectValue placeholder="Batch" />
                               </SelectTrigger>
                               <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
-                                 <SelectItem value="2020">2020-24</SelectItem>
-                                 <SelectItem value="2021">2021-25</SelectItem>
+                                {filteredBatches.map(batch => (
+                                  <SelectItem key={batch.id} value={batch.id.toString()}>{batch.name} {batch.section || ''}</SelectItem>
+                                ))}
                               </SelectContent>
                            </Select>
                         </div>
                         <div className="space-y-2">
                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Semester</label>
-                           <Select>
+                           <Select value={selectedSemester} onValueChange={setSelectedSemester}>
                               <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl font-bold">
                                  <SelectValue placeholder="Sem" />
                               </SelectTrigger>
@@ -117,19 +192,24 @@ export function AdminTutorAssignment() {
                      </div>
                      <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Qualified Tutor</label>
-                        <Select>
+                        <Select value={selectedTutor} onValueChange={setSelectedTutor}>
                            <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl font-bold">
                               <SelectValue placeholder="Select Staff Member" />
                            </SelectTrigger>
                            <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-2xl">
-                              <SelectItem value="r-fox">Dr. Robert Fox</SelectItem>
-                              <SelectItem value="j-cooper">Prof. Jane Cooper</SelectItem>
+                             {tutors.map(tutor => (
+                               <SelectItem key={tutor.id} value={tutor.id}>{tutor.first_name} {tutor.last_name}</SelectItem>
+                             ))}
                            </SelectContent>
                         </Select>
                      </div>
                   </div>
-                  <Button className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-sm tracking-widest shadow-2xl rounded-2xl transition-all active:scale-95 group">
-                     Assign Faculty <ChevronRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
+                  <Button 
+                    onClick={handleAssign}
+                    disabled={isSubmitting}
+                    className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-sm tracking-widest shadow-2xl rounded-2xl transition-all active:scale-95 group disabled:opacity-50"
+                  >
+                     {isSubmitting ? "Assigning..." : <>Assign Faculty <ChevronRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" /></>}
                   </Button>
 
                   <div className="p-6 rounded-2xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 flex items-start gap-4">
@@ -168,17 +248,26 @@ export function AdminTutorAssignment() {
                            </TableRow>
                         </TableHeader>
                         <TableBody>
-                           {assignments.map((assignment) => (
-                              <TableRow key={assignment.id} className="group hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all border-slate-100 dark:border-slate-800 h-24">
+                           {loading ? (
+                             <TableRow>
+                               <TableCell colSpan={4} className="h-32 text-center text-slate-500 font-bold">
+                                 <div className="flex justify-center items-center gap-2">
+                                   <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                   Loading registry data...
+                                 </div>
+                               </TableCell>
+                             </TableRow>
+                           ) : batches.map((batch) => (
+                              <TableRow key={batch.id} className="group hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all border-slate-100 dark:border-slate-800 h-24">
                                  <TableCell className="pl-10">
                                     <div className="flex items-center gap-5">
                                        <div className="w-11 h-11 rounded-2xl bg-white dark:bg-slate-800 text-blue-600 flex items-center justify-center font-black text-xs border border-slate-100 dark:border-slate-700 shadow-xl group-hover:scale-110 transition-transform">
-                                          {assignment.section}
+                                          {batch.section ? batch.section : 'ALL'}
                                        </div>
                                        <div>
-                                          <p className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight text-sm leading-none mb-2 italic">Batch: {assignment.batch}</p>
+                                          <p className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight text-sm leading-none mb-2 italic">Batch: {batch.name}</p>
                                           <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                                             <Building2 size={12} className="text-slate-300" /> {assignment.year} Registry
+                                             <Building2 size={12} className="text-slate-300" /> Dept {batch.department_id}
                                           </p>
                                        </div>
                                     </div>
@@ -186,26 +275,23 @@ export function AdminTutorAssignment() {
                                  <TableCell>
                                     <div className="flex items-center gap-3">
                                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500 border border-slate-200 dark:border-slate-700">
-                                          {assignment.tutor.charAt(0)}
+                                          T
                                        </div>
                                        <div className="flex flex-col">
-                                          <span className="font-black text-xs text-slate-700 dark:text-slate-300 uppercase tracking-tighter leading-none">{assignment.tutor}</span>
-                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 leading-none">Semester {assignment.semester} Controller</span>
+                                          <span className="font-black text-xs text-slate-700 dark:text-slate-300 uppercase tracking-tighter leading-none">Assignment Unknown</span>
+                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 leading-none">Semester {batch.current_semester || '?'} Controller</span>
                                        </div>
                                     </div>
                                  </TableCell>
                                  <TableCell className="text-center">
                                     <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 rounded-full text-[9px] font-black uppercase tracking-widest">
-                                       <CheckCircle2 size={12} /> Live Sync
+                                       <CheckCircle2 size={12} /> {batch.status || 'Active'}
                                     </div>
                                  </TableCell>
                                  <TableCell className="text-right pr-10">
                                     <div className="flex items-center justify-end gap-2 group-hover:translate-x-0 translate-x-4 opacity-0 group-hover:opacity-100 transition-all duration-300">
                                        <Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-90 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm">
                                           <CalendarDays size={16} className="text-slate-600 dark:text-slate-400" />
-                                       </Button>
-                                       <Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-all active:scale-90 border border-transparent">
-                                          <Trash2 size={16} />
                                        </Button>
                                     </div>
                                  </TableCell>
@@ -214,7 +300,7 @@ export function AdminTutorAssignment() {
                         </TableBody>
                      </Table>
                   </div>
-                  {assignments.length === 0 && (
+                  {!loading && batches.length === 0 && (
                      <div className="py-24 text-center px-4">
                         <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-slate-300">
                            <GraduationCap size={32} />

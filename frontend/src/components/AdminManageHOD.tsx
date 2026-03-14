@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   UserSquare2, 
   Plus, 
@@ -50,13 +50,100 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 
+import { hodService, departmentService } from '@/services/api';
+import { toast } from "@/components/ui/use-toast"
+
 export function AdminManageHOD() {
-  const [hods] = useState([
-    { id: 1, name: "Dr. Winston Henderson", department: "Computer Science", email: "winston.h@univ.edu", phone: "+91 99887 76655" },
-    { id: 2, name: "Prof. Sarah Miller", department: "Electronics & Comm.", email: "sarah.m@univ.edu", phone: "+91 88776 65544" },
-    { id: 3, name: "Dr. Robert James", department: "Mechanical Eng.", email: "robert.j@univ.edu", phone: "+91 77665 54433" },
-    { id: 4, name: "Prof. Alice Wright", department: "Civil Engineering", email: "alice.w@univ.edu", phone: "+91 66554 43322" },
-  ]);
+  const [hods, setHods] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    password: '',
+    department_id: '',
+    phone_number: '',
+    gender: 'male',
+    role: 'hod' // Required for ProfileCreate schema
+  });
+
+  const fetchHods = async () => {
+    try {
+      const response = await hodService.getAll();
+      setHods(response.data);
+    } catch (error) {
+      console.error("Failed to fetch HODs:", error);
+    }
+  };
+
+  useEffect(() => {
+    const initData = async () => {
+      try {
+        const [hodsRes, deptsRes] = await Promise.all([
+          hodService.getAll(),
+          departmentService.getAll()
+        ]);
+        setHods(hodsRes.data);
+        setDepartments(deptsRes.data);
+      } catch (error) {
+        console.error("Failed to initialize HOD management:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initData();
+  }, []);
+
+  const handleAppoint = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.email || !formData.first_name || !formData.department_id) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide core appointment details.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await hodService.create({
+        ...formData,
+        department_id: parseInt(formData.department_id)
+      });
+      
+      toast({
+        title: "Appointment Successful",
+        description: "HOD has been successfully assigned and registered.",
+      });
+
+      setIsAddOpen(false);
+      setFormData({
+        first_name: '',
+        last_name: '',
+        email: '',
+        password: '',
+        department_id: '',
+        phone_number: '',
+        gender: 'male',
+        role: 'hod'
+      });
+      fetchHods();
+    } catch (error: any) {
+      console.error("Appointment failed:", error);
+      toast({
+        title: "Appointment Failed",
+        description: error.response?.data?.detail || "Credential synchronization fault.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -66,69 +153,113 @@ export function AdminManageHOD() {
               <UserSquare2 size={24} />
            </div>
            <div>
-              <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Faculty Leadership</h1>
+              <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Manage HODs</h1>
               <p className="text-slate-500 dark:text-slate-400 mt-1 font-bold text-sm italic uppercase tracking-wider opacity-70">Heads of Department Registry</p>
            </div>
         </div>
 
-        <Dialog>
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
             <Button className="h-12 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all">
               <Plus className="mr-3 h-4 w-4" /> Appoint Department Head
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[700px] rounded-[2rem] border-slate-200 dark:border-slate-800 p-0 overflow-hidden shadow-3xl">
-            <div className="bg-indigo-950 p-10 text-white relative">
-               <div className="absolute top-0 right-0 p-10 opacity-10">
-                  <UserCheck size={100} />
-               </div>
-               <DialogTitle className="text-3xl font-black uppercase tracking-tighter leading-none mb-3">Academic Appointment</DialogTitle>
-               <DialogDescription className="text-indigo-300 font-bold uppercase text-[10px] tracking-widest leading-none">Register formal departmental leadership credentials</DialogDescription>
-            </div>
-            <div className="p-10 space-y-8 bg-white dark:bg-slate-900 border-t-4 border-indigo-600">
-              <div className="grid grid-cols-2 gap-8">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">First Name</Label>
-                  <Input placeholder="Enter First Name" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold italic" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Last Name</Label>
-                  <Input placeholder="Enter Last Name" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold italic" />
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">System Username</Label>
-                  <Input placeholder="e.g. j_doe_hod" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" />
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Allocated Department</Label>
-                  <Select>
-                    <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl font-bold">
-                      <SelectValue placeholder="Select Departmental Unit" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-xl">
-                      <SelectItem value="cse">Computer Science</SelectItem>
-                      <SelectItem value="ece">Electronics & Communication</SelectItem>
-                      <SelectItem value="mech">Mechanical Engineering</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Official Email Address</Label>
-                  <Input type="email" placeholder="official@university.edu" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Security Phone Number</Label>
-                  <Input placeholder="+91 00000 00000" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" />
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Temporary Access Password</Label>
-                  <Input type="password" placeholder="••••••••" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" />
-                </div>
+          <DialogContent className="sm:max-w-[700px] rounded-[2rem] border-slate-200 dark:border-slate-800 p-0 overflow-hidden shadow-3xl bg-white dark:bg-slate-950">
+            <form onSubmit={handleAppoint}>
+              <div className="bg-indigo-950 p-10 text-white relative">
+                 <div className="absolute top-0 right-0 p-10 opacity-10">
+                    <UserCheck size={100} />
+                 </div>
+                 <DialogTitle className="text-3xl font-black uppercase tracking-tighter leading-none mb-3">Academic Appointment</DialogTitle>
+                 <DialogDescription className="text-indigo-300 font-bold uppercase text-[10px] tracking-widest leading-none">Register formal departmental leadership credentials</DialogDescription>
               </div>
-              <DialogFooter>
-                <Button type="submit" className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-sm tracking-widest shadow-2xl rounded-2xl transition-all active:scale-95">Commit Appointment & Notify</Button>
-              </DialogFooter>
-            </div>
+              <div className="p-10 space-y-8 bg-white dark:bg-slate-900 border-t-4 border-indigo-600">
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">First Name</Label>
+                    <Input 
+                      value={formData.first_name}
+                      onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                      placeholder="Enter First Name" 
+                      className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold italic" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Last Name</Label>
+                    <Input 
+                      value={formData.last_name}
+                      onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                      placeholder="Enter Last Name" 
+                      className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold italic" 
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Allocated Department</Label>
+                    <Select value={formData.department_id} onValueChange={(val) => setFormData({...formData, department_id: val})}>
+                      <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl font-bold">
+                        <SelectValue placeholder="Select Departmental Unit" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-xl">
+                        {departments.map(dept => (
+                          <SelectItem key={dept.id} value={dept.id.toString()}>{dept.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Official Email Address</Label>
+                    <Input 
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      type="email" 
+                      placeholder="official@university.edu" 
+                      className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Security Phone Number</Label>
+                    <Input 
+                      value={formData.phone_number}
+                      onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
+                      placeholder="+91 00000 00000" 
+                      className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Gender Protocol</Label>
+                    <Select value={formData.gender} onValueChange={(val) => setFormData({...formData, gender: val})}>
+                      <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl font-bold">
+                        <SelectValue placeholder="Select Gender" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Temporary Access Password</Label>
+                    <Input 
+                      value={formData.password}
+                      onChange={(e) => setFormData({...formData, password: e.target.value})}
+                      type="password" 
+                      placeholder="••••••••" 
+                      className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" 
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting}
+                    className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-sm tracking-widest shadow-2xl rounded-2xl transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {isSubmitting ? "Committing Appointment..." : "Commit Appointment & Notify"}
+                  </Button>
+                </DialogFooter>
+              </div>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
@@ -148,7 +279,24 @@ export function AdminManageHOD() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {loading ? (
+             <div className="py-32 flex flex-col items-center justify-center text-center px-4">
+                <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-slate-500 font-bold animate-pulse">Consulting Leadership Dossier...</p>
+             </div>
+          ) : hods.length === 0 ? (
+            <div className="py-32 flex flex-col items-center justify-center text-center px-4 bg-slate-50/20 dark:bg-transparent transition-all">
+              <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-3xl flex items-center justify-center mb-6 text-slate-300 dark:text-slate-600 shadow-inner">
+                 <UserSquare2 size={40} strokeWidth={1.5} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">Leadership Registry Empty</h3>
+              <p className="text-slate-500 dark:text-slate-400 max-w-sm mt-3 text-sm font-bold italic leading-relaxed">
+                No Heads of Department (HODs) have been appointed or registered in the central system yet.
+              </p>
+              <Button onClick={() => setIsAddOpen(true)} className="mt-8 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-xs tracking-widest h-12 px-8 rounded-xl shadow-xl transition-all active:scale-95">Initiate Appointment</Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 hover:bg-transparent h-20 border-slate-100 dark:border-slate-800">
@@ -160,14 +308,14 @@ export function AdminManageHOD() {
               </TableHeader>
               <TableBody>
                 {hods.map((hod) => (
-                  <TableRow key={hod.id} className="group hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-all border-slate-100 dark:border-slate-800/60 h-28">
+                   <TableRow key={hod.id} className="group hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-all border-slate-100 dark:border-slate-800/60 h-28">
                     <TableCell className="pl-10">
                        <div className="flex items-center gap-5">
                           <div className="w-14 h-14 rounded-2xl border-2 border-white dark:border-slate-800 bg-white dark:bg-slate-800 flex items-center justify-center font-black text-lg text-indigo-600 shadow-xl shadow-indigo-100 dark:shadow-none transition-transform group-hover:scale-110">
-                             {hod.name.charAt(0)}
+                             {(hod.full_name || hod.name || "U")[0]}
                           </div>
                           <div>
-                             <p className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight text-base leading-none mb-2">{hod.name}</p>
+                             <p className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight text-base leading-none mb-2">{hod.full_name || hod.name}</p>
                              <Badge variant="outline" className="px-3 py-0.5 text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800">Active Appointment</Badge>
                           </div>
                        </div>
@@ -177,7 +325,7 @@ export function AdminManageHOD() {
                           <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400">
                              <Building2 size={16} />
                           </div>
-                          <span className="font-bold text-sm text-slate-700 dark:text-slate-300 uppercase tracking-tighter">{hod.department}</span>
+                          <span className="font-bold text-sm text-slate-700 dark:text-slate-300 uppercase tracking-tighter">{hod.department?.name || hod.department || 'General Admin'}</span>
                        </div>
                     </TableCell>
                     <TableCell>
@@ -186,7 +334,7 @@ export function AdminManageHOD() {
                              <Mail size={14} className="text-slate-300 group-hover/mail:text-indigo-400" /> {hod.email}
                           </p>
                           <p className="flex items-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-400">
-                             <Phone size={14} className="text-slate-300" /> {hod.phone}
+                             <Phone size={14} className="text-slate-300" /> {hod.phone_number || hod.phone || 'No Contact'}
                           </p>
                        </div>
                     </TableCell>
@@ -222,6 +370,7 @@ export function AdminManageHOD() {
               </TableBody>
             </Table>
           </div>
+          )}
           <div className="p-10 border-t dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col sm:flex-row items-center justify-between gap-6">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
               Showing <span className="text-slate-900 dark:text-white">1–{hods.length}</span> of <span className="text-slate-900 dark:text-white">{hods.length}</span> records

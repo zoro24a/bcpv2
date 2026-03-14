@@ -1,11 +1,12 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.request import Request, RequestHistory
+from sqlalchemy.orm import Session
+from app.models.requests import Request
+from app.models.request_history import RequestHistory
 from sqlalchemy import select
 
 class WorkflowService:
     @staticmethod
-    async def transition_status(db: AsyncSession, request_id: int, action: str, actor_id: int, remarks: str = None):
-        result = await db.execute(select(Request).where(Request.id == request_id))
+    def transition_status(db: Session, request_id: int, action: str, actor_id: str, remarks: str = None):
+        result = db.execute(select(Request).where(Request.id == request_id))
         req = result.scalars().first()
         if not req:
             return None
@@ -14,9 +15,9 @@ class WorkflowService:
         status_map = {
             "approved_tutor": "pending_hod",
             "approved_hod": "pending_principal",
-            "approved_principal": "ready_for_issue",
+            "approved_principal": "approved", # ready_for_issue -> approved
             "issued": "issued",
-            "returned": "returned"
+            "rejected": "rejected"
         }
         
         if action in status_map:
@@ -30,23 +31,23 @@ class WorkflowService:
                 remarks=remarks
             )
             db.add(history)
-            await db.commit()
-            await db.refresh(req)
+            db.commit()
+            db.refresh(req)
             return req
         return None
 
     @staticmethod
-    async def approve_by_tutor(db: AsyncSession, request_id: int, actor_id: int, remarks: str = None):
-        return await WorkflowService.transition_status(db, request_id, "approved_tutor", actor_id, remarks)
+    def approve_by_tutor(db: Session, request_id: int, actor_id: str, remarks: str = None):
+        return WorkflowService.transition_status(db, request_id, "approved_tutor", actor_id, remarks)
 
     @staticmethod
-    async def approve_by_hod(db: AsyncSession, request_id: int, actor_id: int, remarks: str = None):
-        return await WorkflowService.transition_status(db, request_id, "approved_hod", actor_id, remarks)
+    def approve_by_hod(db: Session, request_id: int, actor_id: str, remarks: str = None):
+        return WorkflowService.transition_status(db, request_id, "approved_hod", actor_id, remarks)
 
     @staticmethod
-    async def approve_by_principal(db: AsyncSession, request_id: int, actor_id: int, remarks: str = None):
-        return await WorkflowService.transition_status(db, request_id, "approved_principal", actor_id, remarks)
+    def approve_by_principal(db: Session, request_id: int, actor_id: str, remarks: str = None):
+        return WorkflowService.transition_status(db, request_id, "approved_principal", actor_id, remarks)
 
     @staticmethod
-    async def return_request(db: AsyncSession, request_id: int, actor_id: int, remarks: str = None):
-        return await WorkflowService.transition_status(db, request_id, "returned", actor_id, remarks)
+    def return_request(db: Session, request_id: int, actor_id: str, remarks: str = None):
+        return WorkflowService.transition_status(db, request_id, "rejected", actor_id, remarks) 

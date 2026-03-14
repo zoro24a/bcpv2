@@ -1,35 +1,33 @@
 from datetime import datetime
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy import select, func
-from app.models.certificate import Certificate
-from app.models.request import Request
+from app.models.requests import Request
 
 class CertificateService:
     @staticmethod
-    async def generate_certificate_number(db: AsyncSession):
+    def generate_certificate_number(db: Session):
         year = datetime.now().year
-        # Count certificates in current academic year
-        result = await db.execute(select(func.count(Certificate.id)))
+        # Count requests already issued in current academic year
+        result = db.execute(select(func.count(Request.id)).where(Request.status == "issued"))
         count = result.scalar() + 1
-        return f"ACE/BC/{year}/{str(count).zfill(4)}"
+        return f"ACE/BCP/{year}/{str(count).zfill(4)}", year, count
 
     @staticmethod
-    async def issue_certificate(db: AsyncSession, request_id: int, issuer_id: int):
-        result = await db.execute(select(Request).where(Request.id == request_id))
+    def issue_certificate(db: Session, request_id: int, issuer_id: str):
+        result = db.execute(select(Request).where(Request.id == request_id))
         req = result.scalars().first()
-        if not req or req.status != "ready_for_issue":
+        if not req or req.status != "approved":
             return None
         
-        cert_no = await CertificateService.generate_certificate_number(db)
-        new_cert = Certificate(
-            request_id=request_id,
-            certificate_number=cert_no,
-            issued_by=issuer_id,
-            pdf_url=f"/certificates/{cert_no.replace('/', '_')}.pdf"
-        )
+        cert_no, year, serial_num = CertificateService.generate_certificate_number(db)
         
+        req.certificate_number = cert_no
+        req.year = year
+        req.serial_number = serial_num
+        req.issued_at = datetime.now()
         req.status = "issued"
-        db.add(new_cert)
-        await db.commit()
-        await db.refresh(new_cert)
-        return new_cert
+        req.pdf_url = f"/certificates/ACE_BCP_{year}_{str(serial_num).zfill(4)}.pdf"
+        
+        db.commit()
+        db.refresh(req)
+        return req

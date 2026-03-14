@@ -1,18 +1,22 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Specified Connection String
-DATABASE_URL = "mysql+aiomysql://root:root123@127.0.0.1:3306/bcp_db"
+# Specified Connection String for Sync (PyMySQL)
+DATABASE_URL = "mysql+pymysql://root:root123@localhost:3306/bcp_db"
 
-engine = create_async_engine(DATABASE_URL, echo=True)
-AsyncSessionLocal = async_sessionmaker(
+engine = create_engine(DATABASE_URL, echo=True)
+SessionLocal = sessionmaker(
     bind=engine,
-    class_=AsyncSession,
+    autocommit=False,
+    autoflush=False,
     expire_on_commit=False,
 )
 
 Base = declarative_base()
 
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        yield session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
